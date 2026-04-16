@@ -1,0 +1,13 @@
+{
+  "name": "multi-llm-router-demo",
+  "version": "1.0.0",
+  "description": "Keyword-based multi-LLM router with graceful fallback. Route queries to the right model provider.",
+  "type": "module",
+  "main": "src/router.js",
+  "scripts": {
+    "demo": "node demo.js"
+  },
+  "keywords": ["llm", "router", "multi-model", "ai", "anthropic", "openai", "gemini"],
+  "author": "Wayne Colt <wayne@catalytic-computing.com>",
+  "license": "MIT"
+}
