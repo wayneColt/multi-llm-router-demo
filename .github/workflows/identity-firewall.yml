@@ -1,0 +1,42 @@
+name: Identity Firewall Check
+on: [push, pull_request]
+
+jobs:
+  identity-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Check commit identity
+        run: |
+          echo "=== WayneColt Identity Firewall — Layer 5 ==="
+          BLOCKED_EMAILS="woody.ben@gmail.com bw@wayneia.com wayne@wayneia.com BLOCKED@identity-firewall.local"
+          BLOCKED_NAMES="Ben Wayne bbob BennyBob IDENTITY_MISMATCH_DO_NOT_PUSH"
+
+          FAILED=0
+
+          for email in $BLOCKED_EMAILS; do
+            if git log --all --format='%ae' | grep -q "^${email}$"; then
+              echo "::error::BLOCKED: commit from wayneIA email: $email"
+              FAILED=1
+            fi
+          done
+
+          for name in $BLOCKED_NAMES; do
+            if git log --all --format='%an' | grep -q "^${name}$"; then
+              echo "::error::BLOCKED: commit from wayneIA name: $name"
+              FAILED=1
+            fi
+          done
+
+          if [ "$FAILED" -eq 1 ]; then
+            echo ""
+            echo "Identity firewall FAILED. Commits contain wayneIA identity."
+            echo "Fix: rebase with correct author via"
+            echo "  git rebase -x 'git commit --amend --author=\"Wayne Colt <wayne@catalytic-computing.com>\" --no-edit' HEAD~N"
+            exit 1
+          fi
+
+          echo "Identity firewall PASSED — all commits are wayneColt."
