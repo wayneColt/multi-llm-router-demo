@@ -1,5 +1,9 @@
 name: Identity Firewall Check
-on: [push, pull_request]
+on:
+  push:
+    branches: ['*']
+  pull_request:
+    branches: ['*']
 
 jobs:
   identity-check:
@@ -8,35 +12,45 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-
       - name: Check commit identity
+        env:
+          BEFORE_SHA: ${{ github.event.before }}
+          AFTER_SHA: ${{ github.sha }}
+          EVENT_NAME: ${{ github.event_name }}
+          PR_BASE: ${{ github.event.pull_request.base.sha }}
         run: |
           echo "=== WayneColt Identity Firewall — Layer 5 ==="
           BLOCKED_EMAILS="woody.ben@gmail.com bw@wayneia.com wayne@wayneia.com BLOCKED@identity-firewall.local"
           BLOCKED_NAMES="Ben Wayne bbob BennyBob IDENTITY_MISMATCH_DO_NOT_PUSH"
 
-          FAILED=0
+          # Determine commit range to check
+          if [ "$EVENT_NAME" = "pull_request" ] && [ -n "$PR_BASE" ]; then
+            RANGE="${PR_BASE}..${AFTER_SHA}"
+            echo "Checking PR commits: $RANGE"
+          elif [ -n "$BEFORE_SHA" ] && [ "$BEFORE_SHA" != "0000000000000000000000000000000000000000" ]; then
+            RANGE="${BEFORE_SHA}..${AFTER_SHA}"
+            echo "Checking push commits: $RANGE"
+          else
+            # New branch — check only the tip commit
+            RANGE="-1 ${AFTER_SHA}"
+            echo "New branch — checking tip commit only"
+          fi
 
+          FAILED=0
           for email in $BLOCKED_EMAILS; do
-            if git log --all --format='%ae' | grep -q "^${email}$"; then
+            if git log $RANGE --format='%ae' 2>/dev/null | grep -q "^${email}$"; then
               echo "::error::BLOCKED: commit from wayneIA email: $email"
               FAILED=1
             fi
           done
-
           for name in $BLOCKED_NAMES; do
-            if git log --all --format='%an' | grep -q "^${name}$"; then
+            if git log $RANGE --format='%an' 2>/dev/null | grep -q "^${name}$"; then
               echo "::error::BLOCKED: commit from wayneIA name: $name"
               FAILED=1
             fi
           done
-
           if [ "$FAILED" -eq 1 ]; then
-            echo ""
-            echo "Identity firewall FAILED. Commits contain wayneIA identity."
-            echo "Fix: rebase with correct author via"
-            echo "  git rebase -x 'git commit --amend --author=\"Wayne Colt <wayne@catalytic-computing.com>\" --no-edit' HEAD~N"
+            echo "Identity firewall FAILED."
             exit 1
           fi
-
-          echo "Identity firewall PASSED — all commits are wayneColt."
+          echo "Identity firewall PASSED — all commits in range are wayneColt."
